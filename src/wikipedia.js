@@ -4,8 +4,8 @@
 const FEED_BASE = 'https://en.wikipedia.org/api/rest_v1/feed/featured';
 const SUMMARY_BASE = 'https://en.wikipedia.org/api/rest_v1/page/summary';
 const RANDOM_URL = 'https://en.wikipedia.org/api/rest_v1/page/random/summary';
+const ACTION_API = 'https://en.wikipedia.org/w/api.php';
 
-// Format a Date for the feed URL
 function formatDate(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -20,7 +20,6 @@ export async function fetchFeed(date) {
   return res.json();
 }
 
-// Try today, fall back to yesterday (feed isn't always published in early UTC hours)
 export async function fetchTodaysFeed() {
   try {
     return await fetchFeed(new Date());
@@ -43,13 +42,11 @@ export async function fetchArticleSummary(title) {
   return res.json();
 }
 
-// Get featured article for an arbitrary past date
 export async function fetchArticleForDate(date) {
   const feed = await fetchFeed(date);
   return feed.tfa || null;
 }
 
-// Get the last N days as Date objects (newest first), excluding today
 export function getRecentDates(n = 14) {
   const dates = [];
   for (let i = 1; i <= n; i++) {
@@ -63,4 +60,69 @@ export function getRecentDates(n = 14) {
 export function dateKey(d) {
   const { y, m, d: da } = formatDate(d);
   return `${y}-${m}-${da}`;
+}
+
+// ── Topic-based article fetching ─────────────────────────────────────
+// Maps our topic IDs to Wikipedia category names
+// (Wikipedia categories are large; we use broad ones that contain many articles)
+const TOPIC_CATEGORIES = {
+  science: ['Science', 'Physics', 'Chemistry', 'Biology', 'Astronomy'],
+  history: ['History', 'Ancient_history', 'Medieval_history', 'Modern_history'],
+  geography: ['Geography', 'Countries', 'Cities', 'Mountains', 'Rivers'],
+  culture: ['Arts', 'Literature', 'Music', 'Painting', 'Film'],
+  sports: ['Sports', 'Association_football', 'Olympic_Games', 'Tennis'],
+  technology: ['Technology', 'Computing', 'Software', 'Inventions'],
+  nature: ['Nature', 'Animals', 'Plants', 'Ecology', 'Mammals'],
+  people: ['Biography', 'Scientists', 'Writers', 'Artists', 'Inventors'],
+};
+
+// Fetch a random article from one of the given topic categories
+// Uses Wikipedia's MediaWiki action API which supports CORS via origin=*
+export async function fetchRandomFromTopics(topicIds) {
+  if (!topicIds || topicIds.length === 0) {
+    return fetchRandomArticle();
+  }
+
+  // Pick a random topic from the user's selected ones
+  const topic = topicIds[Math.floor(Math.random() * topicIds.length)];
+  const categories = TOPIC_CATEGORIES[topic];
+  if (!categories) return fetchRandomArticle();
+
+  // Pick a random category within that topic
+  const category = categories[Math.floor(Math.random() * categories.length)];
+
+  // Query Wikipedia for pages in that category
+  const params = new URLSearchParams({
+    action: 'query',
+    list: 'categorymembers',
+    cmtitle: `Category:${category}`,
+    cmlimit: '50',
+    cmtype: 'page',
+    format: 'json',
+    origin: '*',
+  });
+
+  try {
+    const res = await fetch(`${ACTION_API}?${params}`);
+    if (!res.ok) throw new Error('Category query failed');
+    const data = await res.json();
+    const members = data?.query?.categorymembers || [];
+
+    if (members.length === 0) {
+      return fetchRandomArticle();
+    }
+
+    // Pick a random page from the category
+    const pick = members[Math.floor(Math.random() * members.length)];
+
+    // Fetch full summary for that page
+    const summary = await fetchArticleSummary(pick.title);
+
+    // Tag it with the topic we picked it from (so we can display the badge)
+    summary._topicSource = topic;
+    return summary;
+  } catch (err) {
+    // Fall back to fully random if anything goes wrong
+    return fetchRandomArticle();
+  }
 }

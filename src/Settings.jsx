@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
-import { X, Check, BarChart3, Coffee, Settings as SettingsIcon } from 'lucide-react';
-import { ALL_TOPICS, getTopics, setTopics, getQuizStats, getStreak } from './storage.js';
+import { X, Check, BarChart3, Coffee, Settings as SettingsIcon, RotateCcw, Trash2 } from 'lucide-react';
+import {
+  ALL_TOPICS, getTopics, setTopics, getQuizStats, getStreak,
+  resetOnboarding, resetAll,
+} from './storage.js';
 
 export default function Settings({ onClose, fontStyle, bodyFontStyle, onTopicsChange }) {
   const [selected, setSelectedState] = useState(getTopics());
@@ -159,6 +162,61 @@ export default function Settings({ onClose, fontStyle, bodyFontStyle, onTopicsCh
             )}
           </section>
 
+          {/* Reset section */}
+          <section
+            className="pt-6"
+            style={{ borderTop: '1px solid rgba(26,26,46,0.15)' }}
+          >
+            <h4
+              className="text-sm uppercase tracking-widest mb-3"
+              style={{ ...bodyFontStyle, color: '#1A1A2E', fontWeight: 600 }}
+            >
+              Reset
+            </h4>
+
+            <button
+              onClick={() => {
+                if (confirm('Replay the welcome tour? Your streak and stats will be kept.')) {
+                  resetOnboarding();
+                  window.location.reload();
+                }
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 mb-2 transition-transform hover:scale-[1.02]"
+              style={{
+                ...bodyFontStyle,
+                backgroundColor: 'transparent',
+                color: '#1A1A2E',
+                border: '1.5px solid #1A1A2E',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+              }}
+            >
+              <RotateCcw size={14} />
+              Replay welcome tour
+            </button>
+
+            <button
+              onClick={() => {
+                if (confirm("This will erase your streak, quiz history, topics, and cached articles. You can't undo this. Continue?")) {
+                  resetAll();
+                  window.location.reload();
+                }
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 transition-transform hover:scale-[1.02]"
+              style={{
+                ...bodyFontStyle,
+                backgroundColor: 'transparent',
+                color: '#C2410C',
+                border: '1.5px solid #C2410C',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+              }}
+            >
+              <Trash2 size={14} />
+              Reset everything
+            </button>
+          </section>
+
           {/* Support */}
           <section
             className="pt-6"
@@ -187,7 +245,7 @@ export default function Settings({ onClose, fontStyle, bodyFontStyle, onTopicsCh
                 fontWeight: 600,
                 fontSize: '0.85rem',
               }}
-              onClick={() => window.open('https://buymeacoffee.com/aswinsenthilkumar', '_blank')}
+              onClick={() => window.open('https://buymeacoffee.com', '_blank')}
             >
               <Coffee size={14} />
               Buy me a coffee

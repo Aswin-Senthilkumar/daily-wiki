@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Flame, Share2, X, Download, ExternalLink, Loader2, BookOpen,
-  Sparkles, Calendar, Settings as SettingsIcon, Trophy
+  Sparkles, Calendar, Settings as SettingsIcon, Trophy, Shuffle, ArrowUp
 } from 'lucide-react';
 
-import { fetchTodaysFeed, dateKey } from './wikipedia.js';
+import { fetchTodaysFeed, dateKey, fetchRandomFromTopics } from './wikipedia.js';
 import {
   updateStreak, getStreak, isOnboarded, cacheArticle, getCachedArticle,
   getTopics
@@ -30,7 +30,26 @@ export default function App() {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(!isOnboarded());
   const [userTopics, setUserTopics] = useState(getTopics());
+  const [discoverArticle, setDiscoverArticle] = useState(null);
+  const [discoverLoading, setDiscoverLoading] = useState(false);
   const imageRef = useRef(null);
+
+  const handleDiscoverMore = async () => {
+    setDiscoverLoading(true);
+    setDiscoverArticle(null);
+    try {
+      const next = await fetchRandomFromTopics(userTopics);
+      setDiscoverArticle(next);
+      // Scroll to the new article after a brief delay
+      setTimeout(() => {
+        document.getElementById('discover-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (e) {
+      console.error('Discover fetch failed:', e);
+    } finally {
+      setDiscoverLoading(false);
+    }
+  };
 
   // Fetch today's article
   useEffect(() => {
@@ -235,7 +254,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ backgroundColor: '#FAF7F2', minHeight: '100vh' }}>
+    <div style={{ backgroundColor: '#FAF7F2', minHeight: '100vh' }} id="top">
       <GlobalStyles />
 
       {/* Header */}
@@ -477,6 +496,163 @@ export default function App() {
             </div>
           </article>
         )}
+
+        {/* Discover More section */}
+        {article && !loading && (
+          <section id="discover-section" className="mt-16 pt-12" style={{ borderTop: '2px solid rgba(26,26,46,0.15)' }}>
+            <div className="text-center mb-6">
+              <p
+                className="text-xs tracking-widest uppercase mb-3"
+                style={{ ...bodyFontStyle, color: '#C2410C', fontWeight: 600 }}
+              >
+                Want more?
+              </p>
+              <h3
+                className="leading-tight mb-3"
+                style={{
+                  ...fontStyle,
+                  color: '#1A1A2E',
+                  fontSize: '1.75rem',
+                  fontWeight: 900,
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                Discover another article
+              </h3>
+              <p
+                className="text-sm mb-6 max-w-md mx-auto"
+                style={{ ...fontStyle, color: '#6B6B7E' }}
+              >
+                {userTopics.length > 0
+                  ? `Pulls a random Wikipedia article matching your topics: ${userTopics.join(', ')}.`
+                  : 'Pulls a fully random article. Pick topics in Settings to filter.'}
+              </p>
+              <button
+                onClick={handleDiscoverMore}
+                disabled={discoverLoading}
+                className="inline-flex items-center gap-2 px-6 py-3 transition-transform hover:scale-105 disabled:opacity-50"
+                style={{
+                  ...bodyFontStyle,
+                  backgroundColor: '#1A1A2E',
+                  color: '#FAF7F2',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                }}
+              >
+                {discoverLoading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Finding something good…
+                  </>
+                ) : (
+                  <>
+                    <Shuffle size={16} />
+                    {discoverArticle ? 'Try another' : 'Discover more'}
+                  </>
+                )}
+              </button>
+            </div>
+
+            {discoverArticle && (
+              <article className="mt-12 fade-up">
+                {discoverArticle._topicSource && (
+                  <div className="flex items-center gap-2 mb-4">
+                    <span
+                      className="text-xs px-2 py-1 uppercase tracking-wider"
+                      style={{
+                        ...bodyFontStyle,
+                        backgroundColor: 'rgba(194, 65, 12, 0.12)',
+                        color: '#C2410C',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {discoverArticle._topicSource}
+                    </span>
+                  </div>
+                )}
+
+                <h2
+                  className="mb-3 leading-tight"
+                  style={{
+                    ...fontStyle,
+                    color: '#1A1A2E',
+                    fontSize: 'clamp(1.5rem, 4vw, 2.5rem)',
+                    fontWeight: 900,
+                    letterSpacing: '-0.02em',
+                  }}
+                >
+                  {discoverArticle.titles?.normalized || discoverArticle.title}
+                </h2>
+
+                {discoverArticle.description && (
+                  <p
+                    className="mb-6 text-base italic"
+                    style={{ ...fontStyle, color: '#6B6B7E' }}
+                  >
+                    {discoverArticle.description}
+                  </p>
+                )}
+
+                {(discoverArticle.thumbnail?.source || discoverArticle.originalimage?.source) && (
+                  <div className="mb-6 overflow-hidden">
+                    <img
+                      src={discoverArticle.originalimage?.source || discoverArticle.thumbnail?.source}
+                      alt={discoverArticle.title}
+                      className="w-full h-auto"
+                      style={{ maxHeight: '400px', objectFit: 'cover' }}
+                    />
+                  </div>
+                )}
+
+                <p
+                  className="text-base leading-relaxed mb-6"
+                  style={{ ...fontStyle, color: '#1A1A2E' }}
+                >
+                  {discoverArticle.extract}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {discoverArticle.content_urls?.desktop?.page && (
+                    <a
+                      href={discoverArticle.content_urls.desktop.page}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 transition-transform hover:scale-105"
+                      style={{
+                        ...bodyFontStyle,
+                        backgroundColor: 'transparent',
+                        color: '#1A1A2E',
+                        border: '1.5px solid #1A1A2E',
+                        fontWeight: 600,
+                        fontSize: '0.8rem',
+                      }}
+                    >
+                      Read on Wikipedia
+                      <ExternalLink size={14} />
+                    </a>
+                  )}
+                  <button
+                    onClick={() => {
+                      document.getElementById('top')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 transition-transform hover:scale-105"
+                    style={{
+                      ...bodyFontStyle,
+                      backgroundColor: 'transparent',
+                      color: '#6B6B7E',
+                      border: '1.5px solid rgba(26,26,46,0.2)',
+                      fontWeight: 500,
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    <ArrowUp size={14} />
+                    Back to today's article
+                  </button>
+                </div>
+              </article>
+            )}
+          </section>
+        )}
       </main>
 
       <footer
@@ -484,24 +660,13 @@ export default function App() {
         style={{ borderColor: 'rgba(26,26,46,0.15)' }}
       >
         <div className="max-w-3xl mx-auto px-6 py-8 text-center">
-        <p className="text-xs tracking-wider uppercase mb-4" style={{ ...bodyFontStyle, color: '#6B6B7E' }}>
-          One article. One day. Stay curious.
-        </p>
-        
-          href="https://buymeacoffee.com/aswinsenthilkumar"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-xs px-4 py-2 transition-transform hover:scale-105"
-          style={{
-            ...bodyFontStyle,
-            color: '#1A1A2E',
-            border: '1px solid #1A1A2E',
-            fontWeight: 500,
-          }}
-        <a>
-          ☕ Buy me a coffee
-        </a>
-      </div>
+          <p
+            className="text-xs tracking-wider uppercase"
+            style={{ ...bodyFontStyle, color: '#6B6B7E' }}
+          >
+            One article. One day. Stay curious.
+          </p>
+        </div>
       </footer>
 
       {/* Share card modal */}

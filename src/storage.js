@@ -163,3 +163,23 @@ export function getAllCachedDates() {
   } catch {}
   return dates.sort().reverse();
 }
+
+// ── Reset functions ────────────────────────────────────────────────
+// Reset onboarding only — keeps streak, history, and topics
+export function resetOnboarding() {
+  try {
+    localStorage.removeItem(KEYS.ONBOARDED);
+  } catch {}
+}
+
+// Full reset — wipes everything (with confirmation in UI)
+export function resetAll() {
+  try {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith('dailywiki_')) keys.push(k);
+    }
+    keys.forEach((k) => localStorage.removeItem(k));
+  } catch {}
+}
