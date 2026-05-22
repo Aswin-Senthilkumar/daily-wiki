@@ -7,13 +7,16 @@ import {
 import { fetchTodaysFeed, dateKey, fetchRandomFromTopics } from './wikipedia.js';
 import {
   updateStreak, getStreak, isOnboarded, cacheArticle, getCachedArticle,
-  getTopics
+  getTopics, getNewMilestone, hasAskedForNotifs,
 } from './storage.js';
 
 import Quiz from './Quiz.jsx';
 import Archive from './Archive.jsx';
 import Settings from './Settings.jsx';
 import Onboarding from './Onboarding.jsx';
+import MilestoneCelebration from './MilestoneCelebration.jsx';
+import NotificationPrompt from './NotificationPrompt.jsx';
+import LandingPage from './LandingPage.jsx';
 
 export default function App() {
   const [feed, setFeed] = useState(null);
@@ -28,10 +31,14 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(!isOnboarded());
+  const [showLanding, setShowLanding] = useState(!isOnboarded());
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [userTopics, setUserTopics] = useState(getTopics());
   const [discoverArticle, setDiscoverArticle] = useState(null);
   const [discoverLoading, setDiscoverLoading] = useState(false);
+  const [discoverQuizOpen, setDiscoverQuizOpen] = useState(false);
+  const [milestone, setMilestone] = useState(null);
+  const [showNotifPrompt, setShowNotifPrompt] = useState(false);
   const imageRef = useRef(null);
 
   const handleDiscoverMore = async () => {
@@ -86,11 +93,20 @@ export default function App() {
 
   // Update streak on mount (after onboarding)
   useEffect(() => {
-    if (!showOnboarding) {
+    if (!showLanding && !showOnboarding) {
       const newStreak = updateStreak();
       setStreak(newStreak);
+
+      // Check for a new milestone
+      const newMilestone = getNewMilestone(newStreak);
+      if (newMilestone) setMilestone(newMilestone);
+
+      // Show notification prompt after 3+ day streak, if not asked yet
+      if (newStreak >= 3 && !hasAskedForNotifs()) {
+        setTimeout(() => setShowNotifPrompt(true), 4000);
+      }
     }
-  }, [showOnboarding]);
+  }, [showLanding, showOnboarding]);
 
   // Canvas helpers (share card)
   const wrapText = (ctx, text, maxWidth) => {
@@ -236,7 +252,24 @@ export default function App() {
   const fontStyle = { fontFamily: "'Fraunces', Georgia, serif" };
   const bodyFontStyle = { fontFamily: "'DM Sans', system-ui, sans-serif" };
 
-  // Show onboarding for first-time visitors
+  // Show landing page to first-time visitors
+  if (showLanding) {
+    return (
+      <>
+        <GlobalStyles />
+        <LandingPage
+          onGetStarted={() => {
+            setShowLanding(false);
+            setShowOnboarding(true);
+          }}
+          fontStyle={fontStyle}
+          bodyFontStyle={bodyFontStyle}
+        />
+      </>
+    );
+  }
+
+  // Show onboarding after landing CTA
   if (showOnboarding) {
     return (
       <>
@@ -612,6 +645,20 @@ export default function App() {
                 </p>
 
                 <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={() => setDiscoverQuizOpen(true)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 transition-transform hover:scale-105"
+                    style={{
+                      ...bodyFontStyle,
+                      backgroundColor: '#C2410C',
+                      color: '#FAF7F2',
+                      fontWeight: 600,
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    <Trophy size={14} />
+                    Quiz me on this
+                  </button>
                   {discoverArticle.content_urls?.desktop?.page && (
                     <a
                       href={discoverArticle.content_urls.desktop.page}
@@ -824,7 +871,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Quiz modal */}
+      {/* Quiz modal — daily article */}
       {quizOpen && article && (
         <Quiz
           article={article}
@@ -832,6 +879,18 @@ export default function App() {
           onClose={() => setQuizOpen(false)}
           fontStyle={fontStyle}
           bodyFontStyle={bodyFontStyle}
+        />
+      )}
+
+      {/* Quiz modal — Discover article (transient: no streak/history) */}
+      {discoverQuizOpen && discoverArticle && (
+        <Quiz
+          article={discoverArticle}
+          feed={null}
+          onClose={() => setDiscoverQuizOpen(false)}
+          fontStyle={fontStyle}
+          bodyFontStyle={bodyFontStyle}
+          transient={true}
         />
       )}
 
@@ -849,6 +908,26 @@ export default function App() {
         <Settings
           onClose={() => setSettingsOpen(false)}
           onTopicsChange={setUserTopics}
+          fontStyle={fontStyle}
+          bodyFontStyle={bodyFontStyle}
+        />
+      )}
+
+      {/* Milestone celebration */}
+      {milestone && (
+        <MilestoneCelebration
+          milestone={milestone}
+          streak={streak}
+          onClose={() => setMilestone(null)}
+          fontStyle={fontStyle}
+          bodyFontStyle={bodyFontStyle}
+        />
+      )}
+
+      {/* Notification prompt — shown after 3 day streak */}
+      {showNotifPrompt && (
+        <NotificationPrompt
+          onDismiss={() => setShowNotifPrompt(false)}
           fontStyle={fontStyle}
           bodyFontStyle={bodyFontStyle}
         />
