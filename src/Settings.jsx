@@ -187,7 +187,7 @@ export default function Settings({ onClose, fontStyle, bodyFontStyle, onTopicsCh
                 fontWeight: 600,
                 fontSize: '0.85rem',
               }}
-              onClick={() => window.open('https://buymeacoffee.com', '_blank')}
+              onClick={() => window.open('https://buymeacoffee.com/aswinsenthilkumar', '_blank')}
             >
               <Coffee size={14} />
               Buy me a coffee

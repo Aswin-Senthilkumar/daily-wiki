@@ -484,13 +484,24 @@ export default function App() {
         style={{ borderColor: 'rgba(26,26,46,0.15)' }}
       >
         <div className="max-w-3xl mx-auto px-6 py-8 text-center">
-          <p
-            className="text-xs tracking-wider uppercase"
-            style={{ ...bodyFontStyle, color: '#6B6B7E' }}
-          >
-            One article. One day. Stay curious.
-          </p>
-        </div>
+        <p className="text-xs tracking-wider uppercase mb-4" style={{ ...bodyFontStyle, color: '#6B6B7E' }}>
+          One article. One day. Stay curious.
+        </p>
+        
+          href="https://buymeacoffee.com/aswinsenthilkumar"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-xs px-4 py-2 transition-transform hover:scale-105"
+          style={{
+            ...bodyFontStyle,
+            color: '#1A1A2E',
+            border: '1px solid #1A1A2E',
+            fontWeight: 500,
+          }}
+        <a>
+          ☕ Buy me a coffee
+        </a>
+      </div>
       </footer>
 
       {/* Share card modal */}
