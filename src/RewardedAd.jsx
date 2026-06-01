@@ -1,31 +1,69 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Play, Heart, ExternalLink } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RewardedAd — "Support by watching an ad"
 //
-// HOW TO WIRE UP REAL ADS WHEN ADSENSE IS APPROVED:
-//  1. Add to index.html:
-//     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
-//  2. Replace the <SimulatedAd> component below with:
-//       <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXX"
-//            data-ad-slot="XXXXXXXXXX" data-ad-format="rewarded"></ins>
-//  3. Call: (adsbygoogle = window.adsbygoogle || []).push({})
-//  4. On the reward callback, call onComplete()
-//
-// For now: shows a simulated ad countdown so the UX is in place.
+// TO ENABLE REAL REWARDED ADS:
+//  1. In AdSense dashboard: Ads → By ad unit → Rewarded ads → Create
+//  2. Copy the data-ad-slot value
+//  3. Replace REWARDED_SLOT_ID below with that value
+//  4. AdSense will serve a real rewarded ad and fire the reward callback
 // ─────────────────────────────────────────────────────────────────────────────
 
-const AD_DURATION = 10; // seconds
+const PUBLISHER_ID   = 'ca-pub-6239569520497260';
+const REWARDED_SLOT_ID = null; // ← Paste your rewarded ad slot ID here when ready
+
+const AD_DURATION = 15; // seconds for fallback countdown
 
 export default function RewardedAd({ onClose, onComplete, fontStyle, bodyFontStyle }) {
-  const [phase, setPhase]         = useState('intro');   // intro | watching | done
+  const [phase, setPhase]         = useState('intro');
   const [countdown, setCountdown] = useState(AD_DURATION);
   const [canSkip, setCanSkip]     = useState(false);
+  const adContainerRef            = useRef(null);
+  const adPushed                  = useRef(false);
 
-  // Countdown timer
+  // Load real AdSense rewarded ad if slot ID is configured
   useEffect(() => {
     if (phase !== 'watching') return;
+    if (!REWARDED_SLOT_ID) return;
+    if (adPushed.current) return;
+    adPushed.current = true;
+
+    try {
+      const adsbygoogle = window.adsbygoogle || [];
+      adsbygoogle.push({
+        googletag: {
+          cmd: [],
+        },
+      });
+      // Rewarded ad API
+      (window.adsbygoogle = adsbygoogle).push({
+        params: {
+          google_ad_client: PUBLISHER_ID,
+          google_ad_slot:   REWARDED_SLOT_ID,
+        },
+        callbacks: {
+          reward: () => {
+            // User earned the reward
+            setPhase('done');
+            onComplete?.();
+          },
+          adClosed: () => {
+            setPhase('done');
+            onComplete?.();
+          },
+        },
+      });
+    } catch (e) {
+      console.warn('AdSense rewarded failed, falling back to countdown:', e);
+    }
+  }, [phase, onComplete]);
+
+  // Fallback countdown timer (used when no real ad slot is configured)
+  useEffect(() => {
+    if (phase !== 'watching') return;
+    if (REWARDED_SLOT_ID) return; // real ad handles its own timer
     if (countdown <= 0) {
       setPhase('done');
       onComplete?.();
@@ -42,6 +80,10 @@ export default function RewardedAd({ onClose, onComplete, fontStyle, bodyFontSty
     return () => clearTimeout(t);
   }, [phase]);
 
+  const isLocalhost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
   return (
     <div
       className="fixed inset-0 flex items-center justify-center p-4 z-50"
@@ -52,7 +94,8 @@ export default function RewardedAd({ onClose, onComplete, fontStyle, bodyFontSty
         style={{ backgroundColor: '#FAF7F2' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Intro phase */}
+
+        {/* ── Intro ──────────────────────────────────────────────── */}
         {phase === 'intro' && (
           <div className="p-8 text-center">
             <div
@@ -72,14 +115,13 @@ export default function RewardedAd({ onClose, onComplete, fontStyle, bodyFontSty
               className="text-sm mb-2 leading-relaxed"
               style={{ ...bodyFontStyle, color: '#6B6B7E' }}
             >
-              Daily Wiki is free. Watching a short ad helps keep it that way
-              and supports development.
+              Daily Wiki is free. Watching a short ad helps keep it that way.
             </p>
             <p
               className="text-xs mb-8"
               style={{ ...bodyFontStyle, color: '#9B9BAE' }}
             >
-              {AD_DURATION} seconds · No sign-up · Skip after 5s
+              {AD_DURATION} seconds · No sign-up required
             </p>
 
             <button
@@ -92,7 +134,7 @@ export default function RewardedAd({ onClose, onComplete, fontStyle, bodyFontSty
             </button>
             <button
               onClick={onClose}
-              className="w-full py-2.5 text-sm transition-opacity hover:opacity-60"
+              className="w-full py-2.5 text-sm hover:opacity-60"
               style={{ ...bodyFontStyle, color: '#9B9BAE' }}
             >
               No thanks
@@ -100,71 +142,66 @@ export default function RewardedAd({ onClose, onComplete, fontStyle, bodyFontSty
           </div>
         )}
 
-        {/* Watching phase */}
+        {/* ── Watching ───────────────────────────────────────────── */}
         {phase === 'watching' && (
           <div className="relative">
-            {/* Simulated ad space */}
-            <div
-              className="flex flex-col items-center justify-center"
-              style={{
-                height: 280,
-                backgroundColor: '#1A1A2E',
-                backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px, transparent 0, transparent 50%)',
-                backgroundSize: '10px 10px',
-              }}
-            >
-              <p
-                className="text-xs tracking-widest uppercase mb-4"
-                style={{ ...bodyFontStyle, color: 'rgba(250,247,242,0.4)' }}
-              >
-                Advertisement
-              </p>
 
-              {/* ── REPLACE THIS BLOCK WITH REAL ADSENSE REWARDED AD ── */}
-              <div className="text-center px-8">
-                <p
-                  style={{ ...fontStyle, color: '#FAF7F2', fontWeight: 700, fontSize: '1.25rem', lineHeight: 1.3 }}
-                  className="mb-3"
-                >
-                  Ad space
-                </p>
-                <p
-                  style={{ ...bodyFontStyle, color: 'rgba(250,247,242,0.5)', fontSize: '0.8rem' }}
-                >
-                  Real ads will appear here once Google AdSense is approved.
-                  Apply at{' '}
-                  <a
-                    href="https://adsense.google.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline"
-                    style={{ color: 'rgba(250,247,242,0.7)' }}
+            {/* Ad container */}
+            <div
+              ref={adContainerRef}
+              style={{ minHeight: 280, backgroundColor: '#1A1A2E', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', padding: 24 }}
+            >
+              {REWARDED_SLOT_ID && !isLocalhost ? (
+                // Real AdSense rewarded ad unit
+                <ins
+                  className="adsbygoogle"
+                  style={{ display: 'block', width: '100%' }}
+                  data-ad-client={PUBLISHER_ID}
+                  data-ad-slot={REWARDED_SLOT_ID}
+                  data-ad-format="rewarded"
+                />
+              ) : (
+                // Placeholder until real slot ID is added or on localhost
+                <div className="text-center">
+                  <p
+                    className="text-xs tracking-widest uppercase mb-4"
+                    style={{ ...bodyFontStyle, color: 'rgba(250,247,242,0.4)' }}
                   >
-                    adsense.google.com
-                  </a>
-                </p>
-              </div>
-              {/* ─────────────────────────────────────────────────────── */}
+                    Advertisement
+                  </p>
+                  <p
+                    style={{ ...fontStyle, color: '#FAF7F2', fontWeight: 700, fontSize: '1.1rem', marginBottom: 8 }}
+                  >
+                    {isLocalhost
+                      ? 'Ad preview (localhost — real ads show on live site)'
+                      : 'Ad loading…'}
+                  </p>
+                  {!REWARDED_SLOT_ID && (
+                    <p style={{ ...bodyFontStyle, color: 'rgba(250,247,242,0.5)', fontSize: '0.75rem' }}>
+                      Add your rewarded ad slot ID to RewardedAd.jsx to show real ads here.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Progress bar */}
-            <div style={{ height: 4, backgroundColor: 'rgba(26,26,46,0.15)' }}>
+            <div style={{ height: 4, backgroundColor: 'rgba(26,26,46,0.1)' }}>
               <div
                 style={{
                   height: '100%',
                   backgroundColor: '#C2410C',
-                  width: `${((AD_DURATION - countdown) / AD_DURATION) * 100}%`,
+                  width: REWARDED_SLOT_ID
+                    ? '100%'
+                    : `${((AD_DURATION - countdown) / AD_DURATION) * 100}%`,
                   transition: 'width 1s linear',
                 }}
               />
             </div>
 
-            {/* Countdown + skip */}
+            {/* Controls */}
             <div className="flex items-center justify-between px-4 py-3">
-              <p
-                className="text-xs"
-                style={{ ...bodyFontStyle, color: '#6B6B7E' }}
-              >
+              <p className="text-xs" style={{ ...bodyFontStyle, color: '#6B6B7E' }}>
                 {countdown > 0 ? `${countdown}s remaining` : 'Almost done…'}
               </p>
               {canSkip ? (
@@ -177,14 +214,14 @@ export default function RewardedAd({ onClose, onComplete, fontStyle, bodyFontSty
                 </button>
               ) : (
                 <p className="text-xs" style={{ ...bodyFontStyle, color: '#9B9BAE' }}>
-                  Skip in {5 - (AD_DURATION - countdown)}s
+                  Skip in {Math.max(0, 5 - (AD_DURATION - countdown))}s
                 </p>
               )}
             </div>
           </div>
         )}
 
-        {/* Done phase */}
+        {/* ── Done ───────────────────────────────────────────────── */}
         {phase === 'done' && (
           <div className="p-8 text-center">
             <div
@@ -204,8 +241,7 @@ export default function RewardedAd({ onClose, onComplete, fontStyle, bodyFontSty
               className="text-sm mb-6 leading-relaxed"
               style={{ ...bodyFontStyle, color: '#6B6B7E' }}
             >
-              Your support keeps Daily Wiki free and ad-light for everyone. 
-              You can also support directly:
+              Your support keeps Daily Wiki free for everyone. You can also support directly:
             </p>
 
             <a

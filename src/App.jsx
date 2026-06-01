@@ -18,6 +18,7 @@ import MilestoneCelebration from './MilestoneCelebration.jsx';
 import NotificationPrompt   from './NotificationPrompt.jsx';
 import LandingPage          from './LandingPage.jsx';
 import RewardedAd           from './RewardedAd.jsx';
+import AdBanner             from './AdBanner.jsx';
 
 export default function App() {
   // ── Daily article ────────────────────────────────────────────────
@@ -410,6 +411,11 @@ export default function App() {
           </section>
         )}
 
+        {/* Ad banner between sections */}
+        {topicArticle && !topicLoading && (
+          <AdBanner style={{ margin: '0 0 2rem 0' }} />
+        )}
+
         {/* ── SECTION 2: Daily featured article ───────────────────── */}
         <section>
           {/* Section header */}
@@ -522,6 +528,7 @@ export default function App() {
                   bodyFontStyle={bodyFontStyle}
                   showShare
                 />
+                <AdBanner style={{ marginTop: '2rem' }} />
               </div>
             </article>
           )}
