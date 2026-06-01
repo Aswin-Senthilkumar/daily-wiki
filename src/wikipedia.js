@@ -78,6 +78,35 @@ const TOPIC_CATEGORIES = {
 
 // Fetch a random article from one of the given topic categories
 // Uses Wikipedia's MediaWiki action API which supports CORS via origin=*
+// Fetch the full plain-text of a Wikipedia article via the action API.
+// Much longer than the REST summary extract — good for quiz generation.
+// Capped at ~10,000 chars to keep quiz generation fast.
+export async function fetchFullArticleText(title) {
+  if (!title) return null;
+  try {
+    const params = new URLSearchParams({
+      action: 'query',
+      prop: 'extracts',
+      titles: title,
+      format: 'json',
+      origin: '*',
+      explaintext: '1',
+      exsectionformat: 'plain',
+    });
+    const res = await fetch(`${ACTION_API}?${params}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const pages = data?.query?.pages;
+    if (!pages) return null;
+    const page = Object.values(pages)[0];
+    const text = page?.extract || null;
+    // Cap at 10,000 chars — enough for 3 great questions, avoids slowdown
+    return text ? text.slice(0, 10000) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchRandomFromTopics(topicIds) {
   if (!topicIds || topicIds.length === 0) {
     return fetchRandomArticle();

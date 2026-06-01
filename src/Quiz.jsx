@@ -5,7 +5,7 @@ import { saveQuizResult, getQuizHistory } from './storage.js';
 import { dateKey } from './wikipedia.js';
 
 // transient=true → Discover article quizzes. No history save, no "already taken" check.
-export default function Quiz({ article, feed, onClose, fontStyle, bodyFontStyle, transient = false }) {
+export default function Quiz({ article, feed, onClose, fontStyle, bodyFontStyle, transient = false, fullText = null }) {
   const [questions, setQuestions]   = useState(null); // null = generating
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers]       = useState([]);
@@ -24,11 +24,11 @@ export default function Quiz({ article, feed, onClose, fontStyle, bodyFontStyle,
     }
     // Small timeout so the modal opens before heavy regex work
     const t = setTimeout(() => {
-      const generated = generateQuiz(article, feed);
+      const generated = generateQuiz(article, feed, fullText);
       setQuestions(generated);
     }, 80);
     return () => clearTimeout(t);
-  }, [article, feed, todayKey, transient]);
+  }, [article, feed, todayKey, transient, fullText]);
 
   const handleSelect = (opt) => { if (!revealed) setSelected(opt); };
 

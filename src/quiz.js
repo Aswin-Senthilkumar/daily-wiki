@@ -195,8 +195,15 @@ function buildClozeQuestion(sentence, token, answer, options, type) {
 
 // ── Main extraction ────────────────────────────────────────────────────
 
-export function generateQuiz(article, _feed) {
-  const rawExtract = stripHtml(article?.extract || article?.extract_html || '');
+// generateQuiz(article, feed, fullText)
+// fullText: full plain-text from fetchFullArticleText — uses this over extract when available.
+// feed: kept for API compatibility but no longer used for questions.
+export function generateQuiz(article, _feed, fullText) {
+  // Prefer full article text — gives far more material for good questions
+  const rawExtract = fullText
+    || stripHtml(article?.extract_html || '')
+    || article?.extract
+    || '';
   const title = article?.titles?.normalized || article?.title || '';
 
   if (!rawExtract || rawExtract.length < 100) return [];
